@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Менеджер заказов</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.css" rel="stylesheet">
+    <style>
+        .fc-event-pending { --fc-event-bg-color: #3b82f6; --fc-event-border-color: #3b82f6; }
+        .fc-event-completed { --fc-event-bg-color: #10b981; --fc-event-border-color: #10b981; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal:not(.hidden) { display: flex; }
+        .task-item { user-select: none; }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-4">
+        <div class="flex justify-between items-center mb-4">
+            <h1 class="text-2xl font-bold">Панель менеджера</h1>
+            <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded">Выйти</button>
+        </div>
+
+        <!-- Выбор исполнителя -->
+        <div class="bg-white p-4 rounded shadow mb-4">
+            <h2 class="text-xl font-semibold mb-2">Выберите исполнителя</h2>
+            <select id="employeeSelect" onchange="loadCalendar()" class="border p-2 rounded w-full">
+                <option value="">Выберите исполнителя</option>
+            </select>
+        </div>
+
+       
+        <!-- Календарь -->
+        <div class="bg-white p-4 rounded shadow mb-4">
+            <h2 class="text-xl font-semibold mb-2">Календарь заказов</h2>
+            <div id="calendar"></div>
+        </div>
+         <!-- Форма для создания заказа -->
+        <div class="bg-white p-4 rounded shadow mb-4">
+            <h2 class="text-xl font-semibold mb-2">Создать заказ</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <input id="clientName" type="text" placeholder="Имя клиента" class="border p-2 rounded">
+                <input id="clientPhone" type="text" placeholder="Телефон клиента" class="border p-2 rounded">
+                <input id="address" type="text" placeholder="Адрес" class="border p-2 rounded">
+                <input id="description" type="text" placeholder="Описание" class="border p-2 rounded">
+                <input id="dateTime" type="datetime-local" class="border p-2 rounded">
+                <input id="price" type="number" placeholder="Цена" class="border p-2 rounded">
+                <button onclick="createOrder()" class="bg-blue-500 text-white px-4 py-2 rounded col-span-2">Создать</button>
+            </div>
+        </div>
+
+
+        <!-- Блок задач -->
+        <div class="bg-white p-4 rounded shadow">
+            <div class="flex justify-between items-center mb-2">
+                <h2 class="text-xl font-semibold">Задачи</h2>
+                <button onclick="openTaskModal()" class="bg-green-500 text-white px-4 py-2 rounded">Добавить задачу</button>
+            </div>
+            <div class="grid grid-cols-3 gap-4">
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">Ожидают</h3>
+                    <div id="pendingTasks" class="min-h-[200px] bg-gray-50 p-2 rounded border"></div>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">В процессе</h3>
+                    <div id="inProgressTasks" class="min-h-[200px] bg-gray-50 p-2 rounded border"></div>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">Завершены</h3>
+                    <div id="completedTasks" class="min-h-[200px] bg-gray-50 p-2 rounded border"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальное окно для редактирования заказа -->
+        <div id="editOrderModal" class="modal hidden">
+            <div class="bg-white p-6 rounded shadow-lg w-1/2">
+                <h2 class="text-xl font-semibold mb-4">Редактировать заказ</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <input id="editClientName" type="text" placeholder="Имя клиента" class="border p-2 rounded">
+                    <input id="editClientPhone" type="text" placeholder="Телефон клиента" class="border p-2 rounded">
+                    <input id="editAddress" type="text" placeholder="Адрес" class="border p-2 rounded">
+                    <input id="editDescription" type="text" placeholder="Описание" class="border p-2 rounded">
+                    <input id="editDateTime" type="datetime-local" class="border p-2 rounded">
+                    <input id="editPrice" type="number" placeholder="Цена" class="border p-2 rounded">
+                    <select id="editEmployeeSelect" class="border p-2 rounded">
+                        <option value="">Выберите исполнителя</option>
+                    </select>
+                </div>
+                <div class="flex justify-end mt-4">
+                    <button onclick="deleteOrder()" class="bg-red-500 text-white px-4 py-2 rounded mr-2">Удалить</button>
+                    <button onclick="closeModal()" class="bg-gray-500 text-white px-4 py-2 rounded mr-2">Отмена</button>
+                    <button onclick="saveOrder()" class="bg-blue-500 text-white px-4 py-2 rounded">Сохранить</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальное окно для задач -->
+        <div id="taskModal" class="modal hidden">
+            <div class="bg-white p-6 rounded shadow-lg w-1/3">
+                <h2 class="text-xl font-semibold mb-4">Задача</h2>
+                <input id="taskId" type="hidden">
+                <input id="taskText" type="text" placeholder="Текст задачи" class="border p-2 rounded w-full mb-2">
+                <input id="taskDate" type="date" class="border p-2 rounded w-full mb-2">
+                <div class="flex justify-end">
+                    <button onclick="closeTaskModal()" class="bg-gray-500 text-white px-4 py-2 rounded mr-2">Отмена</button>
+                    <button onclick="saveTask()" class="bg-blue-500 text-white px-4 py-2 rounded">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/locales/ru.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = '/login.html';
+        let calendar;
+
+        async function verifyToken() {
+            try {
+                const response = await fetch('/api/verify-token', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error(`Token verification failed: ${response.status}`);
+                const data = await response.json();
+                if (data.isAdmin) window.location.href = '/admin.html';
+            } catch (error) {
+                console.error('Token verification failed:', error);
+                localStorage.removeItem('token');
+                window.location.href = '/login.html';
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('managerName');
+            window.location.href = '/login.html';
+        }
+
+        async function loadEmployees() {
+            try {
+                const response = await fetch('/api/employees', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error(`Failed to load employees: ${response.status}`);
+                const employees = await response.json();
+                console.log('Loaded employees:', employees);
+                const select = document.getElementById('employeeSelect');
+                const editSelect = document.getElementById('editEmployeeSelect');
+                employees.forEach(employee => {
+                    const option = document.createElement('option');
+                    option.value = employee._id;
+                    option.textContent = employee.name;
+                    select.appendChild(option);
+                    editSelect.appendChild(option.cloneNode(true));
+                });
+            } catch (error) {
+                console.error('Error loading employees:', error);
+            }
+        }
+
+        async function createOrder() {
+            const employeeId = document.getElementById('employeeSelect').value;
+            if (!employeeId) {
+                alert('Выберите исполнителя');
+                return;
+            }
+            const order = {
+                clientName: document.getElementById('clientName').value,
+                clientPhone: document.getElementById('clientPhone').value,
+                address: document.getElementById('address').value,
+                description: document.getElementById('description').value,
+                dateTime: document.getElementById('dateTime').value,
+                price: parseInt(document.getElementById('price').value),
+                employee: employeeId,
+                manager: localStorage.getItem('managerName')
+            };
+            try {
+                const response = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(order)
+                });
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Failed to create order: ${response.status} ${errorText}`);
+                }
+                alert('Заказ создан');
+                if (calendar) calendar.refetchEvents();
+                document.querySelectorAll('input').forEach(input => input.value = '');
+            } catch (error) {
+                console.error('Error creating order:', error);
+                alert('Ошибка при создании заказа');
+            }
+        }
+
+        function openModal(order) {
+            document.getElementById('editOrderModal').classList.remove('hidden');
+            document.getElementById('editClientName').value = order.clientName;
+            document.getElementById('editClientPhone').value = order.clientPhone;
+            document.getElementById('editAddress').value = order.address;
+            document.getElementById('editDescription').value = order.description;
+            document.getElementById('editDateTime').value = new Date(order.dateTime).toISOString().slice(0, 16);
+            document.getElementById('editPrice').value = order.price;
+            document.getElementById('editEmployeeSelect').value = order.employee?._id || '';
+            localStorage.setItem('currentOrderId', order._id);
+        }
+
+        async function saveOrder() {
+            const order = {
+                clientName: document.getElementById('editClientName').value,
+                clientPhone: document.getElementById('editClientPhone').value,
+                address: document.getElementById('editAddress').value,
+                description: document.getElementById('editDescription').value,
+                dateTime: document.getElementById('editDateTime').value,
+                price: parseInt(document.getElementById('editPrice').value),
+                employee: document.getElementById('editEmployeeSelect').value,
+                manager: localStorage.getItem('managerName')
+            };
+            try {
+                const response = await fetch(`/api/orders/${localStorage.getItem('currentOrderId')}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(order)
+                });
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Failed to save order: ${response.status} ${errorText}`);
+                }
+                alert('Заказ обновлён');
+                closeModal();
+                if (calendar) calendar.refetchEvents();
+            } catch (error) {
+                console.error('Error saving order:', error);
+                alert('Ошибка при сохранении заказа');
+            }
+        }
+
+        async function deleteOrder() {
+            if (!confirm('Вы уверены, что хотите удалить заказ?')) return;
+            try {
+                const response = await fetch(`/api/orders/${localStorage.getItem('currentOrderId')}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Failed to delete order: ${response.status} ${errorText}`);
+                }
+                alert('Заказ удалён');
+                closeModal();
+                if (calendar) calendar.refetchEvents();
+            } catch (error) {
+                console.error('Error deleting order:', error);
+                alert('Ошибка при удалении заказа');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('editOrderModal').classList.add('hidden');
+        }
+
+        function openTaskModal(task = null) {
+            document.getElementById('taskModal').classList.remove('hidden');
+            document.getElementById('taskId').value = task ? task._id : '';
+            document.getElementById('taskText').value = task ? task.text : '';
+            document.getElementById('taskDate').value = task ? new Date(task.date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+        }
+
+        function closeTaskModal() {
+            document.getElementById('taskModal').classList.add('hidden');
+        }
+
+        async function saveTask() {
+            const task = {
+                text: document.getElementById('taskText').value,
+                date: document.getElementById('taskDate').value
+            };
+            const taskId = document.getElementById('taskId').value;
+            const method = taskId ? 'PUT' : 'POST';
+            const url = taskId ? `/api/tasks/${taskId}` : '/api/tasks';
+            try {
+                const response = await fetch(url, {
+                    method,
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(task)
+                });
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Failed to save task: ${response.status} ${errorText}`);
+                }
+                alert(taskId ? 'Задача обновлена' : 'Задача создана');
+                closeTaskModal();
+                loadTasks();
+            } catch (error) {
+                console.error('Error saving task:', error);
+                alert('Ошибка при сохранении задачи');
+            }
+        }
+
+        async function loadTasks(date = new Date().toISOString().slice(0, 10)) {
+            try {
+                const response = await fetch(`/api/tasks?date=${date}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Failed to load tasks: ${response.status} ${errorText}`);
+                }
+                const tasks = await response.json();
+                console.log('Loaded tasks:', tasks);
+                const pending = document.getElementById('pendingTasks');
+                const inProgress = document.getElementById('inProgressTasks');
+                const completed = document.getElementById('completedTasks');
+                pending.innerHTML = '';
+                inProgress.innerHTML = '';
+                completed.innerHTML = '';
+                tasks.forEach(task => {
+                    const div = document.createElement('div');
+                    div.className = 'task-item bg-white p-2 mb-2 border rounded cursor-move';
+                    div.dataset.id = task._id;
+                    div.textContent = task.text;
+                    div.onclick = () => openTaskModal(task);
+                    if (task.status === 'pending') pending.appendChild(div);
+                    else if (task.status === 'in_progress') inProgress.appendChild(div);
+                    else if (task.status === 'completed') completed.appendChild(div);
+                });
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+            }
+        }
+
+        function initTaskBoard() {
+            ['pendingTasks', 'inProgressTasks', 'completedTasks'].forEach(id => {
+                new Sortable(document.getElementById(id), {
+                    group: 'tasks',
+                    animation: 150,
+                    onEnd: async (evt) => {
+                        const taskId = evt.item.dataset.id;
+                        const newStatus = evt.to.id === 'pendingTasks' ? 'pending' :
+                                         evt.to.id === 'inProgressTasks' ? 'in_progress' : 'completed';
+                        try {
+                            const response = await fetch(`/api/tasks/${taskId}`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Authorization': `Bearer ${token}`,
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ status: newStatus })
+                            });
+                            if (!response.ok) {
+                                const errorText = await response.text();
+                                throw new Error(`Failed to update task status: ${response.status} ${errorText}`);
+                            }
+                        } catch (error) {
+                            console.error('Error updating task status:', error);
+                            loadTasks();
+                        }
+                    }
+                });
+            });
+        }
+
+        function loadCalendar() {
+            const employeeId = document.getElementById('employeeSelect').value;
+            if (!employeeId) {
+                if (calendar) calendar.destroy();
+                document.getElementById('calendar').innerHTML = '';
+                return;
+            }
+            if (calendar) calendar.destroy();
+            calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
+                initialView: 'dayGridMonth',
+                locale: 'ru',
+                events: async (info, successCallback, failureCallback) => {
+                    try {
+                        console.log('Fetching orders for employee:', employeeId);
+                        const response = await fetch(`/api/orders?employee=${employeeId}`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            console.error(`Failed to load orders: ${response.status} ${errorText}`);
+                            successCallback([]);
+                            return;
+                        }
+                        const orders = await response.json();
+                        console.log('Loaded orders for calendar:', orders);
+                        if (!orders.length) {
+                            console.warn('No orders found for employee:', employeeId);
+                        }
+                        const events = orders.map(order => {
+                            console.log('Processing order:', {
+                                _id: order._id,
+                                clientName: order.clientName,
+                                dateTime: order.dateTime,
+                                employee: order.employee,
+                                status: order.status
+                            });
+                            return {
+                                id: order._id,
+                                title: `${order.clientName} `,
+                                start: order.dateTime,
+                                classNames: [order.status === 'completed' ? 'fc-event-completed' : 'fc-event-pending']
+                            };
+                        });
+                        console.log('Generated events:', events);
+                        successCallback(events);
+                    } catch (error) {
+                        console.error('Error loading events:', {
+                            message: error.message,
+                            stack: error.stack
+                        });
+                        successCallback([]);
+                    }
+                },
+                eventClick: async (info) => {
+                    try {
+                        console.log('Fetching order with ID:', info.event.id);
+                        const response = await fetch(`/api/orders/${info.event.id}`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            throw new Error(`Failed to load order: ${response.status} ${errorText}`);
+                        }
+                        const order = await response.json();
+                        console.log('Clicked order:', order);
+                        openModal(order);
+                    } catch (error) {
+                        console.error('Error loading order:', error);
+                        alert('Ошибка при загрузке заказа');
+                    }
+                }
+            });
+            calendar.render();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            verifyToken();
+            loadEmployees();
+            loadTasks();
+            initTaskBoard();
+        });
+    </script>
+</body>
+</html>

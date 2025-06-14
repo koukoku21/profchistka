@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ-панель</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .status-pending { color: blue; }
+        .status-completed { color: green; }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold">Админ-панель</h1>
+            <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Выйти</button>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <h2 class="text-xl font-semibold mb-4">Управление заказами</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium">Дата заказов</label>
+                    <input type="date" id="orderDate" onchange="loadOrders()" class="w-full p-2 border rounded">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium">Поиск заказов</label>
+                    <input type="text" id="searchOrders" oninput="loadOrders()" class="w-full p-2 border rounded">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium">Сортировка</label>
+                    <select id="sortOrders" onchange="loadOrders()" class="w-full p-2 border rounded">
+                        <option value="dateTime">По дате</option>
+                        <option value="clientName">По клиенту</option>
+                        <option value="price">По цене</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium">Исполнитель</label>
+                    <select id="employeeFilter" onchange="loadOrders()" class="w-full p-2 border rounded">
+                        <option value="">Все исполнители</option>
+                    </select>
+                </div>
+            </div>
+            <div id="ordersLoading" class="text-center">Загрузка...</div>
+            <table id="ordersTable" class="w-full border-collapse hidden">
+                <thead>
+                    <tr class="bg-gray-200">
+                        <th class="border p-2">Клиент</th>
+                        <th class="border p-2">Телефон</th>
+                        <th class="border p-2">Адрес</th>
+                        <th class="border p-2">Описание</th>
+                        <th class="border p-2">Дата и время</th>
+                        <th class="border p-2">Цена (₽)</th>
+                        <th class="border p-2">Исполнитель</th>
+                        <th class="border p-2">Менеджер</th>
+                        <th class="border p-2">Статус</th>
+                        <th class="border p-2">Действия</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <h2 class="text-xl font-semibold mb-4">Управление менеджерами</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium">Логин</label>
+                    <input type="text" id="managerUsername" class="w-full p-2 border rounded">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium">Пароль</label>
+                    <input type="password" id="managerPassword" class="w-full p-2 border rounded">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium">Имя</label>
+                    <input type="text" id="managerName" class="w-full p-2 border rounded">
+                </div>
+            </div>
+            <button onclick="addManager()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Добавить менеджера</button>
+            <table id="managersTable" class="w-full border-collapse mt-4">
+                <thead>
+                    <tr class="bg-gray-200">
+                        <th class="border p-2">Логин</th>
+                        <th class="border p-2">Имя</th>
+                        <th class="border p-2">Действия</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <h2 class="text-xl font-semibold mb-4">Управление исполнителями</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium">Имя</label>
+                    <input type="text" id="employeeName" class="w-full p-2 border rounded">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium">Telegram ID</label>
+                    <input type="text" id="employeeTelegramId" class="w-full p-2 border rounded">
+                </div>
+            </div>
+            <button onclick="addEmployee()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Добавить исполнителя</button>
+            <table id="employeesTable" class="w-full border-collapse mt-4">
+                <thead>
+                    <tr class="bg-gray-200">
+                        <th class="border p-2">Имя</th>
+                        <th class="border p-2">Telegram ID</th>
+                        <th class="border p-2">Действия</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-xl font-semibold mb-4">Задачи менеджеров</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium">Менеджер</label>
+                    <select id="managerFilter" onchange="loadTasks()" class="w-full p-2 border rounded">
+                        <option value="">Все менеджеры</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium">Дата</label>
+                    <input type="date" id="taskDate" onchange="loadTasks()" class="w-full p-2 border rounded">
+                </div>
+                <div class="flex items-end">
+                    <button onclick="openTaskModal()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Добавить задачу</button>
+                </div>
+            </div>
+            <table id="tasksTable" class="w-full border-collapse">
+                <thead>
+                    <tr class="bg-gray-200">
+                        <th class="border p-2">Текст</th>
+                        <th class="border p-2">Статус</th>
+                        <th class="border p-2">Менеджер</th>
+                        <th class="border p-2">Дата</th>
+                        <th class="border p-2">Создано</th>
+                        <th class="border p-2">Действия</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div id="editOrderModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center">
+            <div class="bg-white p-6 rounded-lg w-full max-w-md">
+                <h2 class="text-xl font-semibold mb-4">Редактировать заказ</h2>
+                <div class="grid grid-cols-1 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium">Имя клиента</label>
+                        <input type="text" id="editClientName" class="w-full p-2 border rounded">
+                        <label class="block text-sm font-medium mt-2">Телефон</label>
+                        <input type="text" id="editClientPhone" class="w-full p-2 border rounded">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Адрес</label>
+                        <textarea id="editAddress" class="w-full p-2 border rounded"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Описание</label>
+                        <textarea id="editDescription" class="w-full p-2 border rounded"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Дата и время</label>
+                        <input type="datetime-local" id="editDateTime" class="w-full p-2 border rounded">
+                        <label class="block text-sm font-medium mt-2">Цена (₽)</label>
+                        <input type="number" id="editPrice" class="w-full p-2 border rounded">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Исполнитель</label>
+                        <select id="editEmployeeSelect" class="w-full p-2 border rounded">
+                            <option value="">Выберите исполнителя</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <button onclick="saveOrder()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Сохранить</button>
+                    <button onclick="deleteOrder()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Удалить</button>
+                    <button onclick="closeModal()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Закрыть</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="taskModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center">
+            <div class="bg-white p-6 rounded-lg w-full max-w-md">
+                <h2 class="text-xl font-semibold mb-4">Добавить/Редактировать задачу</h2>
+                <input type="hidden" id="taskId">
+                <div>
+                    <label class="block text-sm font-medium">Текст задачи</label>
+                    <textarea id="taskText" class="w-full p-2 border rounded"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mt-2">Менеджер</label>
+                    <select id="taskManager" class="w-full p-2 border rounded">
+                        <option value="">Выберите менеджера</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mt-2">Дата</label>
+                    <input type="date" id="taskDateModal" class="w-full p-2 border rounded">
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <button onclick="saveTask()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Сохранить</button>
+                    <button onclick="closeTaskModal()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = '/login.html';
+
+        async function verifyToken() {
+            try {
+                const response = await fetch('/api/verify-token', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error('Invalid token');
+                const data = await response.json();
+                if (!data.isAdmin) window.location.href = '/index.html';
+            } catch (error) {
+                console.error('Token verification failed:', error);
+                localStorage.removeItem('token');
+                window.location.href = '/login.html';
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('managerName');
+            window.location.href = '/login.html';
+        }
+
+        async function loadEmployees() {
+            try {
+                const response = await fetch('/api/admin/employees', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error('Failed to load employees');
+                const employees = await response.json();
+                console.log('Loaded employees for admin:', employees);
+                const filter = document.getElementById('employeeFilter');
+                const editSelect = document.getElementById('editEmployeeSelect');
+                employees.forEach(employee => {
+                    const option = document.createElement('option');
+                    option.value = employee._id;
+                    option.textContent = employee.name;
+                    filter.appendChild(option.cloneNode(true));
+                    editSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading employees:', error);
+            }
+        }
+
+        async function loadManagers() {
+            try {
+                const response = await fetch('/api/admin/managers', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error('Failed to load managers');
+                const managers = await response.json();
+                console.log('Loaded managers:', managers);
+                const filter = document.getElementById('managerFilter');
+                const taskManager = document.getElementById('taskManager');
+                managers.forEach(manager => {
+                    const option = document.createElement('option');
+                    option.value = manager.name;
+                    option.textContent = manager.name;
+                    filter.appendChild(option.cloneNode(true));
+                    taskManager.appendChild(option);
+                });
+                loadManagerTable(managers);
+            } catch (error) {
+                console.error('Error loading managers:', error);
+            }
+        }
+
+        function loadManagerTable(managers) {
+            const tbody = document.querySelector('#managersTable tbody');
+            tbody.innerHTML = '';
+            managers.forEach(manager => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="border p-2">${manager.username}</td>
+                    <td class="border p-2">${manager.name}</td>
+                    <td class="border p-2">
+                        <button onclick="editManager('${manager._id}')" class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600">Редактировать</button>
+                        <button onclick="deleteManager('${manager._id}')" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Удалить</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        async function loadEmployeeTable() {
+            try {
+                const response = await fetch('/api/admin/employees', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error('Failed to load employees');
+                const employees = await response.json();
+                const tbody = document.querySelector('#employeesTable tbody');
+                tbody.innerHTML = '';
+                employees.forEach(employee => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="border p-2">${employee.name}</td>
+                        <td class="border p-2">${employee.telegramId}</td>
+                        <td class="border p-2">
+                            <button onclick="editEmployee('${employee._id}')" class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600">Редактировать</button>
+                            <button onclick="deleteEmployee('${employee._id}')" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Удалить</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error loading employees:', error);
+            }
+        }
+
+        async function loadOrders() {
+            document.getElementById('ordersLoading').classList.remove('hidden');
+            document.getElementById('ordersTable').classList.add('hidden');
+            try {
+                const date = document.getElementById('orderDate').value;
+                const search = document.getElementById('searchOrders').value;
+                const sort = document.getElementById('sortOrders').value;
+                const employee = document.getElementById('employeeFilter').value;
+                const query = new URLSearchParams({ date, search, sort, employee }).toString();
+                const response = await fetch(`/api/admin/orders?${query}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error('Failed to load orders');
+                const orders = await response.json();
+                console.log('Loaded orders for admin:', orders);
+                const tbody = document.querySelector('#ordersTable tbody');
+                tbody.innerHTML = '';
+                orders.forEach(order => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="border p-2">${order.clientName}</td>
+                        <td class="border p-2">${order.clientPhone}</td>
+                        <td class="border p-2">${order.address}</td>
+                        <td class="border p-2">${order.description}</td>
+                        <td class="border p-2">${new Date(order.dateTime).toLocaleString('ru-RU')}</td>
+                        <td class="border p-2">${order.price}</td>
+                        <td class="border p-2">${order.employee?.name || 'Не назначен'}</td>
+                        <td class="border p-2">${order.manager}</td>
+                        <td class="border p-2 status-${order.status}">${order.status === 'pending' ? 'В ожидании' : 'Выполнено'}</td>
+                        <td class="border p-2">
+                            <button onclick="openModal('${order._id}')" class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600">Редактировать</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                document.getElementById('ordersLoading').classList.add('hidden');
+                document.getElementById('ordersTable').classList.remove('hidden');
+            } catch (error) {
+                console.error('Error loading orders:', error);
+            }
+        }
+
+        async function loadTasks() {
+            try {
+                const manager = document.getElementById('managerFilter').value;
+                const date = document.getElementById('taskDate').value;
+                const query = new URLSearchParams({ manager, date }).toString();
+                const response = await fetch(`/api/admin/tasks?${query}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error('Failed to load tasks');
+                const tasks = await response.json();
+                console.log('Loaded tasks for admin:', tasks);
+                const tbody = document.querySelector('#tasksTable tbody');
+                tbody.innerHTML = '';
+                tasks.forEach(task => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="border p-2">${task.text}</td>
+                        <td class="border p-2">${task.status === 'pending' ? 'В ожидании' : task.status === 'in_progress' ? 'Выполняется' : 'Выполнено'}</td>
+                        <td class="border p-2">${task.manager}</td>
+                        <td class="border p-2">${new Date(task.date).toLocaleDateString('ru-RU')}</td>
+                        <td class="border p-2">${task.createdBy}</td>
+                        <td class="border p-2">
+                            <button onclick="editTask('${task._id}')" class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600">Редактировать</button>
+                            <button onclick="deleteTask('${task._id}')" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Удалить</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+            }
+        }
+
+        async function openModal(orderId) {
+            try {
+                const response = await fetch(`/api/orders/${orderId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error('Failed to load order');
+                const order = await response.json();
+                document.getElementById('editOrderModal').classList.remove('hidden');
+                document.getElementById('editClientName').value = order.clientName;
+                document.getElementById('editClientPhone').value = order.clientPhone;
+                document.getElementById('editAddress').value = order.address;
+                document.getElementById('editDescription').value = order.description;
+                document.getElementById('editDateTime').value = new Date(order.dateTime).toISOString().slice(0, 16);
+                document.getElementById('editPrice').value = order.price;
+                document.getElementById('editEmployeeSelect').value = order.employee?._id || '';
+                localStorage.setItem('currentOrderId', order._id);
+            } catch (error) {
+                console.error('Error loading order:', error);
+            }
+        }
+
+        async function saveOrder() {
+            const order = {
+                clientName: document.getElementById('editClientName').value,
+                clientPhone: document.getElementById('editClientPhone').value,
+                address: document.getElementById('editAddress').value,
+                description: document.getElementById('editDescription').value,
+                dateTime: document.getElementById('editDateTime').value,
+                price: parseInt(document.getElementById('editPrice').value),
+                employee: document.getElementById('editEmployeeSelect').value
+            };
+            try {
+                const response = await fetch(`/api/orders/${localStorage.getItem('currentOrderId')}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(order)
+                });
+                if (!response.ok) throw new Error(await response.text());
+                alert('Заказ обновлён');
+                closeModal();
+                loadOrders();
+            } catch (error) {
+                console.error('Error saving order:', error);
+                alert('Ошибка при сохранении заказа');
+            }
+        }
+
+        async function deleteOrder() {
+            if (!confirm('Вы уверены, что хотите удалить заказ?')) return;
+            try {
+                const response = await fetch(`/api/orders/${localStorage.getItem('currentOrderId')}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error(await response.text());
+                alert('Заказ удалён');
+                closeModal();
+                loadOrders();
+            } catch (error) {
+                console.error('Error deleting order:', error);
+                alert('Ошибка при удалении заказа');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('editOrderModal').classList.add('hidden');
+        }
+
+        async function addManager() {
+            const manager = {
+                username: document.getElementById('managerUsername').value,
+                password: document.getElementById('managerPassword').value,
+                name: document.getElementById('managerName').value
+            };
+            try {
+                const response = await fetch('/api/admin/managers', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(manager)
+                });
+                if (!response.ok) throw new Error(await response.text());
+                alert('Менеджер добавлен');
+                loadManagers();
+            } catch (error) {
+                console.error('Error adding manager:', error);
+                alert('Ошибка при добавлении менеджера');
+            }
+        }
+
+        function editManager(id) {
+            // Реализация редактирования менеджера
+            alert('Функция редактирования менеджера пока не реализована');
+        }
+
+        async function deleteManager(id) {
+            if (!confirm('Вы уверены, что хотите удалить менеджера?')) return;
+            try {
+                const response = await fetch(`/api/admin/managers/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error(await response.text());
+                alert('Менеджер удалён');
+                loadManagers();
+            } catch (error) {
+                console.error('Error deleting manager:', error);
+                alert('Ошибка при удалении менеджера');
+            }
+        }
+
+        async function addEmployee() {
+            const employee = {
+                name: document.getElementById('employeeName').value,
+                telegramId: document.getElementById('employeeTelegramId').value
+            };
+            try {
+                const response = await fetch('/api/admin/employees', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(employee)
+                });
+                if (!response.ok) throw new Error(await response.text());
+                alert('Исполнитель добавлен');
+                loadEmployeeTable();
+                loadEmployees();
+            } catch (error) {
+                console.error('Error adding employee:', error);
+                alert('Ошибка при добавлении исполнителя');
+            }
+        }
+
+        function editEmployee(id) {
+            // Реализация редактирования исполнителя
+            alert('Функция редактирования исполнителя пока не реализована');
+        }
+
+        async function deleteEmployee(id) {
+            if (!confirm('Вы уверены, что хотите удалить исполнителя?')) return;
+            try {
+                const response = await fetch(`/api/admin/employees/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error(await response.text());
+                alert('Исполнитель удалён');
+                loadEmployeeTable();
+                loadEmployees();
+            } catch (error) {
+                console.error('Error deleting employee:', error);
+                alert('Ошибка при удалении исполнителя');
+            }
+        }
+
+        function openTaskModal(task = null) {
+            document.getElementById('taskModal').classList.remove('hidden');
+            document.getElementById('taskId').value = task ? task._id : '';
+            document.getElementById('taskText').value = task ? task.text : '';
+            document.getElementById('taskDateModal').value = task ? new Date(task.date).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+            document.getElementById('taskManager').value = task ? task.manager : '';
+        }
+
+        function closeTaskModal() {
+            document.getElementById('taskModal').classList.add('hidden');
+        }
+
+        async function saveTask() {
+            const task = {
+                text: document.getElementById('taskText').value,
+                manager: document.getElementById('taskManager').value,
+                date: document.getElementById('taskDateModal').value
+            };
+            const taskId = document.getElementById('taskId').value;
+            const method = taskId ? 'PUT' : 'POST';
+            const url = taskId ? `/api/tasks/${taskId}` : '/api/admin/tasks';
+            try {
+                const response = await fetch(url, {
+                    method,
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(task)
+                });
+                if (!response.ok) throw new Error(await response.text());
+                alert(taskId ? 'Задача обновлена' : 'Задача создана');
+                closeTaskModal();
+                loadTasks();
+            } catch (error) {
+                console.error('Error saving task:', error);
+                alert('Ошибка при сохранении задачи');
+            }
+        }
+
+        async function editTask(id) {
+            try {
+                const response = await fetch(`/api/admin/tasks?manager=&date=`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error('Failed to load tasks');
+                const tasks = await response.json();
+                const task = tasks.find(t => t._id === id);
+                if (task) openTaskModal(task);
+            } catch (error) {
+                console.error('Error loading task:', error);
+            }
+        }
+
+        async function deleteTask(id) {
+            if (!confirm('Вы уверены, что хотите удалить задачу?')) return;
+            try {
+                const response = await fetch(`/api/admin/tasks/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error(await response.text());
+                alert('Задача удалена');
+                loadTasks();
+            } catch (error) {
+                console.error('Error deleting task:', error);
+                alert('Ошибка при удалении задачи');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            verifyToken();
+            loadEmployees();
+            loadManagers();
+            loadEmployeeTable();
+            loadOrders();
+            loadTasks();
+        });
+    </script>
+</body>
+</html>
