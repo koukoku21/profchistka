@@ -16,7 +16,7 @@ const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
 const managerChatId = process.env.MANAGER_CHAT_ID;
 
 // MongoDB подключение
-mongoose.connect('mongodb://localhost/cleaning_app', { useNewUrlParser: true, useUnifiedTopology: true });
+mongoose.connect('mongodb+srv://admin:admin@profchistka.puqmmhh.mongodb.net/?retryWrites=true&w=majority&appName=Profchistka', { useNewUrlParser: true, useUnifiedTopology: true });
 const db = mongoose.connection;
 db.on('error', console.error.bind(console, 'MongoDB connection error:'));
 
